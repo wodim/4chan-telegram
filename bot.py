@@ -45,12 +45,8 @@ def post_thread(chat_id: int, context: CallbackContext, args: list = None) -> No
     context.bot.send_chat_action(chat_id=chat_id, action=telegram.ChatAction.TYPING)
 
     board = args[0] if args else random.choice(DEFAULT_BOARDS)
-    try:
-        threads = _4c.threads_in_board(board)
-        thread = _4c.thread_info(board, random.choice(threads))
-    except Exception as exc:
-        context.bot.send_message(chat_id, repr(exc))
-        return
+    threads = _4c.threads_in_board(board)
+    thread = _4c.thread_info(board, random.choice(threads))
 
     text = ''
 
@@ -91,7 +87,10 @@ def cron(context: CallbackContext) -> None:
 
 
 def command_thread(update: Update, context: CallbackContext) -> None:
-    post_thread(update.message.chat_id, context, context.args)
+    try:
+        post_thread(update.message.chat_id, context, context.args)
+    except Exception as exc:
+        context.bot.send_message(update.message.chat_id, repr(exc))
 
 
 def command_help(update: Update, context: CallbackContext) -> None:
