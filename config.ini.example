@@ -1,0 +1,4 @@
+[bot]
+boards = r9k b int gif
+token = 123123123:zzzzzzzzzzzzz
+cron_chat_id = -100123123123

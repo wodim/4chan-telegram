@@ -1,4 +1,4 @@
-/token
+/config.ini
 /tmp/*
 !/tmp/.keep
 /__pycache__

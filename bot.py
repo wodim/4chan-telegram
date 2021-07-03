@@ -1,3 +1,4 @@
+import configparser
 import datetime
 import logging
 import os
@@ -15,11 +16,16 @@ from _4chan import _4chan
 logging.basicConfig(format='%(asctime)s - %(name)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-DEFAULT_BOARDS = 'r9k b int'.split(' ')
 FFMPEG_CMD = 'ffmpeg -hide_banner -i \'{source}\' -preset veryfast \'{dest}\''
 
 _4c = _4chan()
 rx_greentext = re.compile(r'^(\\>.*)$', re.MULTILINE)
+
+
+def _config(k: str):
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    return config['bot'][k]
 
 
 def _e(text):
@@ -44,7 +50,7 @@ def _webm_convert(file: str) -> str:
 def post_thread(chat_id: int, context: CallbackContext, args: list = None) -> None:
     context.bot.send_chat_action(chat_id=chat_id, action=telegram.ChatAction.TYPING)
 
-    board = args[0] if args else random.choice(DEFAULT_BOARDS)
+    board = args[0] if args else random.choice(_config('boards').split(' '))
     threads = _4c.threads_in_board(board)
     thread = _4c.thread_info(board, random.choice(threads))
 
@@ -83,7 +89,7 @@ def post_thread(chat_id: int, context: CallbackContext, args: list = None) -> No
 def cron(context: CallbackContext) -> None:
     if 2 < datetime.datetime.now().astimezone().hour < 10:
         return
-    post_thread(-1001160392935, context)
+    post_thread(int(_config('cron_chat_id')), context)
 
 
 def command_thread(update: Update, context: CallbackContext) -> None:
@@ -100,8 +106,7 @@ def command_help(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
-    with open('token', 'rt') as fp:
-        updater = Updater(fp.read().strip())
+    updater = Updater(_config('token'))
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
