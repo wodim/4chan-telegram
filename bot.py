@@ -97,6 +97,7 @@ def command_thread(update: Update, context: CallbackContext) -> None:
         post_thread(update.message.chat_id, context, context.args)
     except Exception as exc:
         context.bot.send_message(update.message.chat_id, repr(exc))
+        raise
 
 
 def command_help(update: Update, context: CallbackContext) -> None:
