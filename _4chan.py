@@ -7,8 +7,6 @@ import shutil
 import bs4
 import requests
 
-from redis_client import db as cache
-
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,8 +16,12 @@ class _4chan:
     CATALOG_URL = 'https://boards.4chan.org/%s/catalog'
     THREAD_URL = 'https://boards.4chan.org/%s/thread/%d'
 
-    def __init__(self):
+    def __init__(self, cached=True):
         self.rx_thread_ids = re.compile(r'[{\,]"(\d+)\":{')
+        self.cached = cached
+        if self.cached:
+            from redis_client import db as cache
+            self.cache = cache
 
     @staticmethod
     def _download_file(url, name):
@@ -90,39 +92,43 @@ class _4chan:
 
     def thread_info(self, board, thread):
         """returns info about a thread"""
-        cached = cache.get('thread_%s_%d' % (board, thread))
-        if cached:
-            logger.info('using cached result for /%s/%s', board, thread)
-            return pickle.loads(cached)
-        logger.info('nothing in cache for /%s/%s; retrieving fresh info', board, thread)
+        if self.cached:
+            cached = self.cache.get('thread_%s_%d' % (board, thread))
+            if cached:
+                logger.info('using cached result for /%s/%s', board, thread)
+                return pickle.loads(cached)
+            logger.info('nothing in cache for /%s/%s; retrieving fresh info', board, thread)
         return self.refresh_thread_cache(board, thread)
 
     def refresh_thread_cache(self, board, thread):
         """requests and parses a thread and puts it in cache"""
-        logger.info('refreshing thread cache for /%s/%s', board, thread)
+        logger.info('retrieving thread /%s/%s', board, thread)
         thread_content = self._request_thread(board, thread)
-        pickled = pickle.dumps(thread_content)
-        cache.set('thread_%s_%d' % (board, thread), pickled, ex=60 * 60)
-        logger.info('done refreshing thread for /%s/%s', board, thread)
+        if self.cached:
+            pickled = pickle.dumps(thread_content)
+            self.cache.set('thread_%s_%d' % (board, thread), pickled, ex=60 * 60)
+        logger.info('done retrieving thread /%s/%s', board, thread)
         return thread_content
 
     def threads_in_board(self, board):
         """returns a list of all threads in a board, either from cache
             or by making a request to the live site"""
-        cached = cache.get('threads_%s' % board)
-        if cached:
-            logger.info('using cached result for /%s/', board)
-            return pickle.loads(cached)
-        logger.info('nothing in cache for /%s/; retrieving fresh info', board)
+        if self.cached:
+            cached = self.cache.get('threads_%s' % board)
+            if cached:
+                logger.info('using cached result for /%s/', board)
+                return pickle.loads(cached)
+            logger.info('nothing in cache for /%s/; retrieving fresh info', board)
         return self.refresh_board_cache(board)
 
     def refresh_board_cache(self, board):
         """requests and parses a board and puts it in cache"""
-        logger.info('refreshing board cache for /%s/', board)
+        logger.info('retrieving board /%s/', board)
         r = requests.get(self.CATALOG_URL % board)
         if r.status_code != requests.codes.ok:
             raise RuntimeError("couldn't request the board catalog: %d" % r.status_code)
         threads_ids = [int(x) for x in self.rx_thread_ids.findall(r.text)]
-        cache.set('threads_%s' % board, pickle.dumps(threads_ids), ex=60)
-        logger.info('done refreshing board cache for /%s/', board)
+        if self.cached:
+            self.cache.set('threads_%s' % board, pickle.dumps(threads_ids), ex=60)
+        logger.info('done retrieving /%s/', board)
         return threads_ids
