@@ -71,16 +71,16 @@ def post_thread(chat_id: int, context: CallbackContext, args: list = None) -> No
 
     text += '\n\n' + _e(thread['url'])
 
-    if thread['image_url'].endswith('.webm'):
-        thread['image_file'] = _webm_convert(thread['image_file'])
+    if thread['image_url']:
+        if thread['image_url'].endswith('.webm'):
+            thread['image_file'] = _webm_convert(thread['image_file'])
+        if thread['image_url'].endswith('.gif') or thread['image_url'].endswith('.webm'):
+            fun = context.bot.send_document
+        else:
+            fun = context.bot.send_photo
+        with open(thread['image_file'], 'rb') as fp:
+            fun(chat_id, fp)
 
-    if thread['image_url'].endswith('.gif') or thread['image_url'].endswith('.webm'):
-        fun = context.bot.send_document
-    else:
-        fun = context.bot.send_photo
-
-    with open(thread['image_file'], 'rb') as fp:
-        fun(chat_id, fp)
     context.bot.send_message(chat_id, '%s' % text,
                              parse_mode=telegram.constants.PARSEMODE_MARKDOWN_V2,
                              disable_web_page_preview=True)

@@ -52,6 +52,8 @@ class _4chan:
                 text += '\n'
             elif element.string:
                 text += element.string
+            elif element.text:
+                text += element.text
 
         return text
 
@@ -75,10 +77,14 @@ class _4chan:
             subject = str(subject)
         # file: get info and download and store it
         soup_file = soup_op.find('div', class_='file')
-        image_info = ' '.join(soup_file.find('div', class_='fileText').strings)
-        image_url = soup_file.find('a', class_='fileThumb')['href']
-        image_file = self._download_file(image_url, 'image_%s_%d.%s' %
-                                         (board, thread, image_url.split('.')[-1]))
+        try:
+            image_info = ' '.join(soup_file.find('div', class_='fileText').strings)
+            image_url = soup_file.find('a', class_='fileThumb')['href']
+            image_file = self._download_file(image_url, 'image_%s_%d.%s' %
+                                             (board, thread, image_url.split('.')[-1]))
+        except AttributeError:
+            image_info = '(file deleted)'
+            image_url, image_file = None, None
         # and finally the text
         soup_message = soup_op.find('blockquote', class_='postMessage')
         text = self._soup_to_text(soup_message)
